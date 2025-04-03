@@ -62,3 +62,40 @@ export const deleteUser = async (c: Context) => {
     return c.json({ error: error?.message }, 500);
   }
 };
+
+export const checkUserExists = async (c: Context) => {
+  try {
+    const email = c.req.query("email");
+
+    if (!email) {
+      return c.json({ error: "Email parameter is required" }, 400);
+    }
+
+    const existsUser = await userService.existsByEmail(email);
+
+    const user = {
+      id: existsUser?.userId,
+      name: existsUser?.fullName,
+      role: existsUser?.role,
+      email: existsUser?.email
+    }
+    const exists = !!existsUser;
+
+    console.log("🚀 ~ checkUserExists ~ exists:", exists)
+    return c.json({ exists, user }, 200);
+  } catch (error: any) {
+    return c.json({ error: error?.message }, 500);
+  }
+};
+
+export const getActiveUsers = async (c: Context) => {
+  try {
+    const data = await userService.getActiveUsers();
+    if (!data || data.length === 0) {
+      return c.json({ message: "No active users found" }, 404);
+    }
+    return c.json(data, 200);
+  } catch (error: any) {
+    return c.json({ error: error?.message }, 500);
+  }
+};

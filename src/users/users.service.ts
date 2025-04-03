@@ -45,7 +45,17 @@ type UserWithDetails = {
   }[];
 };
 
-export const userService = {
+interface UserService {
+  list: () => Promise<UserWithDetails[]>;
+  getById: (id: number) => Promise<UserWithDetails | undefined>;
+  create: (user: TIUser) => Promise<TIUser>;
+  update: (id: number, user: Partial<TIUser>) => Promise<TIUser | null>;
+  delete: (id: number) => Promise<boolean>;
+  existsByEmail: (email: string) => Promise<TIUser | null>;
+  getActiveUsers: () => Promise<UserWithDetails[]>;
+}
+
+export const userService: UserService = {
   list: async (): Promise<UserWithDetails[]> => {
     const users = await db.query.UsersTable.findMany({
       columns: {
@@ -254,4 +264,105 @@ export const userService = {
       .returning();
     return result.length > 0;
   },
+
+  existsByEmail: async (email: string): Promise<TIUser | null> => {
+    try {
+      const user = await db.query.UsersTable.findFirst({
+        where: (users, { eq }) => eq(users.email, email),
+      });
+      return user || null;
+    } catch (error) {
+      console.error('Error checking if user exists:', error);
+      throw new Error('Failed to check if user exists');
+    }
+  },
+  
+  getActiveUsers: async (): Promise<UserWithDetails[]> => {
+    // Define the threshold for considering a user "active"
+    // For example, users who have logged in during the last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    // Query users who have recent activity
+    // You could check against updated_at, or against related records like workout_logs
+    const activeUsers = await db.query.UsersTable.findMany({
+      columns: {
+        userId: true,
+        fullName: true,
+        email: true,
+        dateOfBirth: true,
+        gender: true,
+        height: true,
+        weight: true,
+        role: true,
+        fitnessGoal: true,
+        experienceLevel: true,
+        preferredWorkoutType: true,
+        activityLevel: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      with: {
+        progressTracking: {
+          columns: {
+            date: true,
+            weight: true,
+            bodyFatPercentage: true,
+            chest: true,
+            waist: true,
+            hips: true,
+            arms: true,
+            thighs: true,
+          },
+          orderBy: (progressTracking, { desc }) => [desc(progressTracking.date)],
+          limit: 5,
+        },
+        workoutPlans: {
+          columns: {
+            name: true,
+            goal: true,
+            difficulty: true,
+            durationWeeks: true,
+          },
+          orderBy: (workoutPlans, { desc }) => [desc(workoutPlans.createdAt)],
+          limit: 1,
+        },
+        nutritionPlans: {
+          columns: {
+            dailyCalories: true,
+            proteinGrams: true,
+            carbsGrams: true,
+            fatGrams: true,
+            mealsPerDay: true,
+          },
+          orderBy: (nutritionPlans, { desc }) => [desc(nutritionPlans.createdAt)],
+          limit: 1,
+        },
+      },
+      where: (users, { gt }) => gt(users.updatedAt, thirtyDaysAgo),
+      orderBy: (users, { desc }) => [desc(users.updatedAt)],
+    });
+
+   
+    return activeUsers.map(user => ({
+      ...user,
+      dateOfBirth: new Date(user.dateOfBirth),
+      createdAt: new Date(user.createdAt),
+      updatedAt: new Date(user.updatedAt),
+      progressTracking: user.progressTracking.map(progress => ({
+        date: new Date(progress.date),
+        weight: progress.weight,
+        bodyFatPercentage: progress.bodyFatPercentage,
+        measurements: {
+          chest: progress.chest,
+          waist: progress.waist,
+          hips: progress.hips,
+          arms: progress.arms,
+          thighs: progress.thighs,
+        }
+      }))
+    })) as UserWithDetails[];
+  },
+
 };
+

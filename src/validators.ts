@@ -18,6 +18,25 @@ export const userSchema = z.object({
   dietaryRestrictions: z.string().optional(),
 });
 
+export const updateUserSchema = z.object({
+  fullName: z.string().min(1, "Full name is required").optional(),
+  email: z.string().email("Invalid email address").optional(),
+  password: z.string().min(8, "Password must be at least 8 characters long").optional(),
+  dateOfBirth: z.string().transform((str) => new Date(str)).optional(),
+  gender: z.string().min(1, "Gender is required").optional(),
+  height: z.number().positive("Height must be positive").optional(),
+  weight: z.number().positive("Weight must be positive").optional(),
+  role: z.enum(["user", "admin"]).optional(),
+  fitnessGoal: z.enum(["weight_loss", "muscle_gain", "maintenance"]).optional(),
+  experienceLevel: z.enum(["beginner", "intermediate", "advanced"]).optional(),
+  preferredWorkoutType: z.enum(["home", "gym"]).optional(),
+  activityLevel: z.string().min(1, "Activity level is required").optional(),
+  medicalConditions: z.string().optional(),
+  dietaryRestrictions: z.string().optional(),
+}).refine((data) => Object.keys(data).length > 0, {
+  message: "At least one field must be provided for update"
+});
+
 export const exerciseLibrarySchema = z.object({
   name: z.string().min(1, "Exercise name is required"),
   description: z.string().min(1, "Description is required"),
@@ -151,6 +170,12 @@ export const aiConfigurationSchema = z.object({
     min: z.number().positive(),
     max: z.number().positive()
   }))
+});
+
+export const oauthTokenSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  oauthProvider: z.string().min(1, "OAuth provider is required"),
+  oauthId: z.string().min(1, "OAuth ID is required"),
 });
 
 

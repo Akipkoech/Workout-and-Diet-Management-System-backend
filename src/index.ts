@@ -1,6 +1,12 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { csrf } from 'hono/csrf'
+import { logger } from 'hono/logger'
+import { trimTrailingSlash } from "hono/trailing-slash";
+import { timing } from 'hono/timing'
+import { prettyJSON } from 'hono/pretty-json'
+
 import "dotenv/config";
 import { userRouter } from "./users/users.router";
 import { exerciseLibraryRouter } from "./exercise-library/exercise-library.router"
@@ -18,6 +24,7 @@ import { supportTicketRouter } from "./support-tickets/support-tickets.router";
 import { dashboardRouter } from './dashboard/dashboard.router';
 import { mealConsumptionRouter } from './meal-consumption/meal-consumption.router';
 import { authRouter } from "./auth/auth.router";
+import { statsRouter } from "./statistics/statistics.router";
 
 const app = new Hono();
 
@@ -25,6 +32,12 @@ app.use("*", cors({
   origin: "http://localhost:3000",
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 }));
+app.use(csrf())
+app.use(logger())
+app.use(trimTrailingSlash())
+
+app.use(timing());
+app.use('/*', prettyJSON())
 
 app.get("/", (c) => {
   return c.text("Welcome to Workout and Diet Management System API!");
@@ -46,13 +59,13 @@ app.route("/api", supportTicketRouter);
 app.route('/api', dashboardRouter);
 app.route("/api", mealConsumptionRouter);
 app.route("/api/auth", authRouter);
+app.route("/api", statsRouter);
 
 
-
-console.log(`Server is running on port ${process.env.PORT}`);
+console.log(`Server is running on http://localhost:${process.env.PORT}`);
 
 
 serve({
   fetch: app.fetch,
-  port: Number(process.env.PORT) || 8000,
+  port: Number(process.env.PORT),
 });
